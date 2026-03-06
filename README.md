@@ -125,7 +125,6 @@ The-Silent-Room-1986/
 ## 🌐 Links
 
 - **Play Online**: https://RobinAyzit.github.io/The-Silent-Room-1986
-- **itch.io**: https://robinayzit.itch.io/the-silent-room-1986
 - **GitHub**: https://github.com/RobinAyzit/The-Silent-Room-1986
 
 ---
