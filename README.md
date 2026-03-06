@@ -131,8 +131,6 @@ The-Silent-Room-1986/
 
 ## 📝 License
 
-MIT License - Feel free to use and modify!
-
 MIT License
 
 Copyright (c) 2026 nRn World
