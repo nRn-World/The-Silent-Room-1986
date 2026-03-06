@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Silent Room 1986 - Logo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+        }
+        
+        .logo-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 4px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+        
+        /* CRT Effect */
+        .logo-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        /* Scanlines */
+        .logo-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 11;
+        }
+        
+        .year {
+            font-family: 'Special Elite', cursive;
+            font-size: 28px;
+            color: #8b0000;
+            letter-spacing: 20px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(139, 0, 0, 0.8);
+            animation: flicker 4s infinite;
+        }
+        
+        .title {
+            font-family: 'Special Elite', cursive;
+            font-size: 72px;
+            color: #e8e8e8;
+            text-align: center;
+            line-height: 1.1;
+            text-shadow: 
+                2px 2px 0 #1a1a1a,
+                0 0 30px rgba(255, 255, 255, 0.3),
+                0 0 60px rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .title .silent {
+            color: #4a4a4a;
+            text-shadow: 
+                2px 2px 0 #1a1a1a,
+                0 0 20px rgba(100, 100, 100, 0.5);
+        }
+        
+        .title .room {
+            color: #c9c9c9;
+        }
+        
+        .divider {
+            width: 200px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #666, transparent);
+            margin: 20px 0;
+        }
+        
+        .subtitle {
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            color: #555;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+        
+        .typewriter-effect {
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            color: #3a3a3a;
+            margin-top: 30px;
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 3s steps(30) forwards;
+            border-right: 2px solid #3a3a3a;
+            width: 0;
+        }
+        
+        @keyframes typing {
+            to { width: 100%; }
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            93% { opacity: 0.8; }
+            94% { opacity: 1; }
+            96% { opacity: 0.9; }
+            97% { opacity: 1; }
+        }
+        
+        .corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #333;
+        }
+        
+        .corner-tl { top: 15px; left: 15px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 15px; right: 15px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 15px; left: 15px; border-right: none; border-top: none; }
+        .corner-br { bottom: 15px; right: 15px; border-left: none; border-top: none; }
+        
+        .case-file {
+            position: absolute;
+            bottom: 40px;
+            font-size: 14px;
+            color: #2a2a2a;
+            letter-spacing: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <div class="corner corner-tl"></div>
+        <div class="corner corner-tr"></div>
+        <div class="corner corner-bl"></div>
+        <div class="corner corner-br"></div>
+        
+        <div class="year">1986</div>
+        <div class="title">
+            <span class="silent">THE SILENT</span><br>
+            <span class="room">ROOM</span>
+        </div>
+        <div class="divider"></div>
+        <div class="subtitle">A Detective Mystery</div>
+        <div class="typewriter-effect">Case File #402</div>
+        <div class="case-file">CONFIDENTIAL</div>
+    </div>
+</body>
+</html>
