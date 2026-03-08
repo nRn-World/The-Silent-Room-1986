@@ -7,9 +7,9 @@ function chapterAudioUrl(id: number) {
 }
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Terminal, Shield, Zap, Wind, Droplets, Sun, Lock, Unlock, 
+  Shield, Zap, Droplets, Sun, Unlock, 
   AlertTriangle, BookOpen, Flame, Snowflake, Ghost, EyeOff, 
-  Languages, Search, Fingerprint, Skull, MapPin, User
+  Search, Fingerprint, Skull, MapPin, User
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
