@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // background music file URLs (Vite will copy these into the build)
 const menuAudioUrl = new URL('../../Sounds/menu.mp3', import.meta.url).href;
@@ -23,6 +23,8 @@ function cn(...inputs: ClassValue[]) {
 
 type Language = 'en' | 'sv' | 'tr';
 
+type KeywordEffectType = 'rain' | 'water' | 'blood' | 'red' | 'police' | 'thunder' | 'fire' | 'ghost' | 'cold' | 'heat' | 'wind' | 'dark';
+
 export type ManifestationType = 'rain' | 'light' | 'heavy' | 'wall' | 'tangle' | 'open' | 'heat' | 'cold' | 'ghost' | 'fire' | 'gravity' | 'shield' | 'time' | 'blood' | 'mirror';
 
 interface Manifestation {
@@ -36,7 +38,7 @@ interface Manifestation {
 
 interface Enemy {
   id: string;
-  type: 'standard' | 'hacker' | 'heavy' | 'censor' | 'infiltrator';
+  type: 'standard' | 'heavy' | 'censor' | 'infiltrator';
   x: number;
   y: number;
   health: number;
@@ -60,6 +62,23 @@ interface Chapter {
   manifestationWords: Record<string, ManifestationType>;
   isBoss?: boolean;
 }
+
+const KEYWORD_EFFECTS: Record<KeywordEffectType, string[]> = {
+  rain: ['rain', 'regn', 'yagmur', 'drizzle'],
+  water: ['water', 'vatten', 'su', 'ocean', 'river', 'flood', 'wave'],
+  blood: ['blood', 'blod', 'kan'],
+  red: ['red', 'rod', 'kirmizi', 'scarlet', 'crimson'],
+  police: ['police', 'polis', 'polisbil', 'siren', 'cop'],
+  thunder: ['thunder', 'storm', 'blixt', 'aska', 'firtina', 'yildirim'],
+  fire: ['fire', 'eld', 'ates', 'burn', 'flame'],
+  ghost: ['ghost', 'spoke', 'hayalet', 'spirit', 'shadow'],
+  cold: ['cold', 'kall', 'soguk', 'ice', 'frost', 'snow'],
+  heat: ['heat', 'hot', 'varm', 'sicak', 'lava'],
+  wind: ['wind', 'vind', 'ruzgar', 'gust', 'hurricane'],
+  dark: ['dark', 'morker', 'karanlik', 'night', 'blackout'],
+};
+
+const KEYWORD_COOLDOWN_MS = 1400;
 
 const TRANSLATIONS: Record<Language, { ui: Record<string, string>, chapters: Chapter[] }> = {
   en: {
@@ -93,7 +112,7 @@ const TRANSLATIONS: Record<Language, { ui: Record<string, string>, chapters: Cha
         title: "The Body",
         goal: "Investigate the crime scene.",
         text: "The rain washes the blood from the pavement. I found the body in room 402. It was cold, like the silence of the city.",
-        manifestationWords: { "rain": "rain", "blood": "fire", "body": "ghost", "cold": "cold" }
+        manifestationWords: { "rain": "rain", "blood": "blood", "body": "ghost", "cold": "cold" }
       },
       {
         id: 2,
@@ -134,24 +153,24 @@ const TRANSLATIONS: Record<Language, { ui: Record<string, string>, chapters: Cha
   },
   sv: {
     ui: {
-      points: "Revolutionspoäng",
-      accuracy: "Träffsäkerhet",
+      points: "RevolutionspoÃ¤ng",
+      accuracy: "TrÃ¤ffsÃ¤kerhet",
       progress: "Fallframsteg",
       initialize: "Starta Utredning",
       upgrades: "Uppgraderingar",
       restart: "Starta om fallet",
-      next: "Nästa kapitel",
+      next: "NÃ¤sta kapitel",
       victory: "Fallet Avslutat",
       gameover: "Utredning Avbruten",
       typewriterMods: "Skrivmaskinsmodifieringar",
-      return: "Återgå till fallet",
+      return: "Ã…tergÃ¥ till fallet",
       maxed: "Maxad",
       upgrade: "Uppgradera",
       chapter: "Kapitel",
       forbidden: "Klassificerad fil",
       audio: "Ljud",
       active: "Aktivt",
-      initAudio: "Klicka för att aktivera",
+      initAudio: "Klicka fÃ¶r att aktivera",
       langName: "Svenska",
       detective: "Detektiv",
       truth: "Sanningen",
@@ -161,114 +180,114 @@ const TRANSLATIONS: Record<Language, { ui: Record<string, string>, chapters: Cha
       {
         id: 1,
         title: "Kroppen",
-        goal: "Undersök brottsplatsen.",
-        text: "Regnet tvättar blodet från trottoaren. Jag hittade kroppen i rum 402. Den var kall, som stadens tystnad.",
-        manifestationWords: { "regn": "rain", "blod": "fire", "kropp": "ghost", "kall": "cold" }
+        goal: "UndersÃ¶k brottsplatsen.",
+        text: "Regnet tvÃ¤ttar blodet frÃ¥n trottoaren. Jag hittade kroppen i rum 402. Den var kall, som stadens tystnad.",
+        manifestationWords: { "regn": "rain", "blod": "blood", "kropp": "ghost", "kall": "cold" }
       },
       {
         id: 2,
-        title: "Ledtråden",
+        title: "LedtrÃ¥den",
         goal: "Hitta det saknade beviset.",
-        text: "Jag behöver mer ljus för att se bandet. Det finns en konstig lukt i luften. En nyckel lämnades kvar i mörkret.",
-        manifestationWords: { "ljus": "light", "nyckel": "open", "mörker": "ghost", "lukt": "tangle" }
+        text: "Jag behÃ¶ver mer ljus fÃ¶r att se bandet. Det finns en konstig lukt i luften. En nyckel lÃ¤mnades kvar i mÃ¶rkret.",
+        manifestationWords: { "ljus": "light", "nyckel": "open", "mÃ¶rker": "ghost", "lukt": "tangle" }
       },
       {
         id: 3,
         title: "Vittnet",
-        goal: "Förhör grannen.",
-        text: "Grannen är som ett spöke. Hon såg en skugga på väggen. Vi måste prata om vad som hände den natten.",
-        manifestationWords: { "spöke": "ghost", "skugga": "wall", "vägg": "wall", "prata": "time" }
+        goal: "FÃ¶rhÃ¶r grannen.",
+        text: "Grannen Ã¤r som ett spÃ¶ke. Hon sÃ¥g en skugga pÃ¥ vÃ¤ggen. Vi mÃ¥ste prata om vad som hÃ¤nde den natten.",
+        manifestationWords: { "spÃ¶ke": "ghost", "skugga": "wall", "vÃ¤gg": "wall", "prata": "time" }
       },
       {
         id: 4,
         title: "Jakten",
-        goal: "Jaga den misstänkte.",
-        text: "Han är snabb, rör sig genom gatan. Varje vägg är ett hinder. Staden är en labyrint av bläck och stål.",
-        manifestationWords: { "snabb": "time", "gata": "gravity", "vägg": "wall", "bläck": "rain" }
+        goal: "Jaga den misstÃ¤nkte.",
+        text: "Han Ã¤r snabb, rÃ¶r sig genom gatan. Varje vÃ¤gg Ã¤r ett hinder. Staden Ã¤r en labyrint av blÃ¤ck och stÃ¥l.",
+        manifestationWords: { "snabb": "time", "gata": "gravity", "vÃ¤gg": "wall", "blÃ¤ck": "rain" }
       },
       {
         id: 5,
         title: "Fel Man",
-        goal: "Hörna den misstänkte.",
-        text: "Elden brinner i hans ögon. Jag ska låsa dörren. Denna fälla är satt för hyresvärden. Han måste vara mördaren.",
-        manifestationWords: { "eld": "fire", "lås": "shield", "fälla": "tangle", "mördare": "heavy" }
+        goal: "HÃ¶rna den misstÃ¤nkte.",
+        text: "Elden brinner i hans Ã¶gon. Jag ska lÃ¥sa dÃ¶rren. Denna fÃ¤lla Ã¤r satt fÃ¶r hyresvÃ¤rden. Han mÃ¥ste vara mÃ¶rdaren.",
+        manifestationWords: { "eld": "fire", "lÃ¥s": "shield", "fÃ¤lla": "tangle", "mÃ¶rdare": "heavy" }
       },
       {
         id: 6,
         title: "Domen",
-        goal: "Möt den ultimata sanningen.",
-        text: "Sanningen är gömd i spegeln. Detta är slutet på historien. Bläcket avslöjar mitt eget ansikte. Det var jag.",
-        manifestationWords: { "sanning": "light", "spegel": "shield", "slut": "gravity", "bläck": "rain" }
+        goal: "MÃ¶t den ultimata sanningen.",
+        text: "Sanningen Ã¤r gÃ¶md i spegeln. Detta Ã¤r slutet pÃ¥ historien. BlÃ¤cket avslÃ¶jar mitt eget ansikte. Det var jag.",
+        manifestationWords: { "sanning": "light", "spegel": "shield", "slut": "gravity", "blÃ¤ck": "rain" }
       }
     ]
   },
   tr: {
     ui: {
-      points: "Devrim Puanları",
-      accuracy: "Doğruluk",
-      progress: "Vaka İlerlemesi",
-      initialize: "Soruşturmayı Başlat",
-      upgrades: "Geliştirmeler",
-      restart: "Vakayı Yeniden Başlat",
-      next: "Sonraki Bölüm",
-      victory: "Vaka Çözüldü",
-      gameover: "Soruşturma Sonlandırıldı",
-      typewriterMods: "Daktilo Modifikasyonları",
-      return: "Vakaya Dön",
+      points: "Devrim PuanlarÄ±",
+      accuracy: "DoÄŸruluk",
+      progress: "Vaka Ä°lerlemesi",
+      initialize: "SoruÅŸturmayÄ± BaÅŸlat",
+      upgrades: "GeliÅŸtirmeler",
+      restart: "VakayÄ± Yeniden BaÅŸlat",
+      next: "Sonraki BÃ¶lÃ¼m",
+      victory: "Vaka Ã‡Ã¶zÃ¼ldÃ¼",
+      gameover: "SoruÅŸturma SonlandÄ±rÄ±ldÄ±",
+      typewriterMods: "Daktilo ModifikasyonlarÄ±",
+      return: "Vakaya DÃ¶n",
       maxed: "Maksimum",
-      upgrade: "Geliştir",
-      chapter: "Bölüm",
+      upgrade: "GeliÅŸtir",
+      chapter: "BÃ¶lÃ¼m",
       forbidden: "Gizli Dosya",
       audio: "Ses",
       active: "Aktif",
-      initAudio: "Etkinleştirmek için tıkla",
-      langName: "Türkçe",
+      initAudio: "EtkinleÅŸtirmek iÃ§in tÄ±kla",
+      langName: "TÃ¼rkÃ§e",
       detective: "Dedektif",
-      truth: "Gerçek",
-      wrongGuess: "Yanlış Adam",
+      truth: "GerÃ§ek",
+      wrongGuess: "YanlÄ±ÅŸ Adam",
     },
     chapters: [
       {
         id: 1,
         title: "Ceset",
         goal: "Olay yerini incele.",
-        text: "Yağmur kaldırımdaki kanı yıkıyor. Cesedi 402 numaralı odada buldum. Şehrin sessizliği gibi soğuktu.",
-        manifestationWords: { "yağmur": "rain", "kan": "fire", "ceset": "ghost", "soğuk": "cold" }
+        text: "YaÄŸmur kaldÄ±rÄ±mdaki kanÄ± yÄ±kÄ±yor. Cesedi 402 numaralÄ± odada buldum. Åžehrin sessizliÄŸi gibi soÄŸuktu.",
+        manifestationWords: { "yaÄŸmur": "rain", "kan": "blood", "ceset": "ghost", "soÄŸuk": "cold" }
       },
       {
         id: 2,
-        title: "İpucu",
-        goal: "Eksik kanıtı bul.",
-        text: "Şeridi görmek için daha fazla ışığa ihtiyacım var. Havada garip bir koku var. Karanlıkta bir anahtar bırakılmış.",
-        manifestationWords: { "ışık": "light", "anahtar": "open", "karanlık": "ghost", "koku": "tangle" }
+        title: "Ä°pucu",
+        goal: "Eksik kanÄ±tÄ± bul.",
+        text: "Åžeridi gÃ¶rmek iÃ§in daha fazla Ä±ÅŸÄ±ÄŸa ihtiyacÄ±m var. Havada garip bir koku var. KaranlÄ±kta bir anahtar bÄ±rakÄ±lmÄ±ÅŸ.",
+        manifestationWords: { "Ä±ÅŸÄ±k": "light", "anahtar": "open", "karanlÄ±k": "ghost", "koku": "tangle" }
       },
       {
         id: 3,
-        title: "Tanık",
-        goal: "Komşuyu sorgula.",
-        text: "Komşu bir hayalet gibi. Duvarda bir gölge gördü. O gece neler olduğu hakkında konuşmamız lazım.",
-        manifestationWords: { "hayalet": "ghost", "gölge": "wall", "duvar": "wall", "konuş": "time" }
+        title: "TanÄ±k",
+        goal: "KomÅŸuyu sorgula.",
+        text: "KomÅŸu bir hayalet gibi. Duvarda bir gÃ¶lge gÃ¶rdÃ¼. O gece neler olduÄŸu hakkÄ±nda konuÅŸmamÄ±z lazÄ±m.",
+        manifestationWords: { "hayalet": "ghost", "gÃ¶lge": "wall", "duvar": "wall", "konuÅŸ": "time" }
       },
       {
         id: 4,
         title: "Takip",
-        goal: "Şüpheliyi kovala.",
-        text: "Hızlı, sokakta ilerliyor. Her duvar bir engel. Şehir bir mürekkep ve çelik labirenti.",
-        manifestationWords: { "hızlı": "time", "sokak": "gravity", "duvar": "wall", "mürekkep": "rain" }
+        goal: "ÅžÃ¼pheliyi kovala.",
+        text: "HÄ±zlÄ±, sokakta ilerliyor. Her duvar bir engel. Åžehir bir mÃ¼rekkep ve Ã§elik labirenti.",
+        manifestationWords: { "hÄ±zlÄ±": "time", "sokak": "gravity", "duvar": "wall", "mÃ¼rekkep": "rain" }
       },
       {
         id: 5,
-        title: "Yanlış Adam",
-        goal: "Şüpheliyi köşeye sıkıştır.",
-        text: "Gözlerinde ateş yanıyor. Kapıyı kilitleyeceğim. Bu tuzak ev sahibi için kuruldu. Katil o olmalı.",
-        manifestationWords: { "ateş": "fire", "kilit": "shield", "tuzak": "tangle", "katil": "heavy" }
+        title: "YanlÄ±ÅŸ Adam",
+        goal: "ÅžÃ¼pheliyi kÃ¶ÅŸeye sÄ±kÄ±ÅŸtÄ±r.",
+        text: "GÃ¶zlerinde ateÅŸ yanÄ±yor. KapÄ±yÄ± kilitleyeceÄŸim. Bu tuzak ev sahibi iÃ§in kuruldu. Katil o olmalÄ±.",
+        manifestationWords: { "ateÅŸ": "fire", "kilit": "shield", "tuzak": "tangle", "katil": "heavy" }
       },
       {
         id: 6,
         title: "Karar",
-        goal: "Nihai gerçekle yüzleş.",
-        text: "Gerçek aynada gizli. Bu hikayenin sonu. Mürekkep kendi yüzümü ortaya çıkarıyor. O bendim.",
-        manifestationWords: { "gerçek": "light", "ayna": "shield", "son": "gravity", "mürekkep": "rain" }
+        goal: "Nihai gerÃ§ekle yÃ¼zleÅŸ.",
+        text: "GerÃ§ek aynada gizli. Bu hikayenin sonu. MÃ¼rekkep kendi yÃ¼zÃ¼mÃ¼ ortaya Ã§Ä±karÄ±yor. O bendim.",
+        manifestationWords: { "gerÃ§ek": "light", "ayna": "shield", "son": "gravity", "mÃ¼rekkep": "rain" }
       }
     ]
   }
@@ -312,7 +331,15 @@ export default function Game() {
   const [isGravity, setIsGravity] = useState(false);
   const [isShielded, setIsShielded] = useState(false);
   const [isTimeSlowed, setIsTimeSlowed] = useState(false);
-  const [scrambleAmount, setScrambleAmount] = useState(0);
+  const [isRaining, setIsRaining] = useState(false);
+  const [isWaterPulse, setIsWaterPulse] = useState(false);
+  const [isPoliceAlert, setIsPoliceAlert] = useState(false);
+  const [bloodFlash, setBloodFlash] = useState(false);
+  const [redFlash, setRedFlash] = useState(false);
+  const [stormFlash, setStormFlash] = useState(false);
+  const [darkFlash, setDarkFlash] = useState(false);
+  const [ghostFog, setGhostFog] = useState(false);
+  const [windRush, setWindRush] = useState(false);
   const [revolutionPoints, setRevolutionPoints] = useState(0);
   const [upgrades, setUpgrades] = useState<Upgrades>({
     oiledKeys: 0,
@@ -322,11 +349,28 @@ export default function Game() {
   
   const t = TRANSLATIONS[lang];
   const chapter = t.chapters[chapterIndex];
+  const level = chapterIndex + 1;
+  const rank = useMemo(() => Math.max(1, 1 + Math.floor((revolutionPoints + chapterIndex * 180) / 700)), [revolutionPoints, chapterIndex]);
 
   // Audio Logic
   const audioCtxRef = useRef<AudioContext | null>(null);
   // HTMLAudioElement reference used for looping background music
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const enemiesRef = useRef<Enemy[]>([]);
+  const keywordCooldownRef = useRef<Record<KeywordEffectType, number>>({
+    rain: 0,
+    water: 0,
+    blood: 0,
+    red: 0,
+    police: 0,
+    thunder: 0,
+    fire: 0,
+    ghost: 0,
+    cold: 0,
+    heat: 0,
+    wind: 0,
+    dark: 0,
+  });
 
   const initAudio = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -370,7 +414,11 @@ export default function Game() {
     return () => document.removeEventListener('click', onFirstClick);
   }, [initAudio]);
 
-  const playSound = useCallback((type: 'click' | 'bell' | 'backspace' | 'glitch') => {
+  useEffect(() => {
+    enemiesRef.current = enemies;
+  }, [enemies]);
+
+  const playSound = useCallback((type: 'click' | 'bell' | 'backspace' | 'glitch' | 'siren' | 'thunder') => {
     const ctx = initAudio();
     const now = ctx.currentTime;
 
@@ -420,12 +468,42 @@ export default function Game() {
       gain.connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.2);
+    } else if (type === 'siren') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(620, now);
+      osc.frequency.linearRampToValueAtTime(980, now + 0.8);
+      osc.frequency.linearRampToValueAtTime(620, now + 1.6);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.6);
+    } else if (type === 'thunder') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.7);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.7);
     }
   }, [initAudio]);
 
   // Handle Manifestations
+  const pulseState = (setter: React.Dispatch<React.SetStateAction<boolean>>, duration: number) => {
+    setter(true);
+    setTimeout(() => setter(false), duration);
+  };
+
   const triggerManifestation = useCallback((type: ManifestationType) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = Math.random().toString(36).slice(2, 11);
     const newManifestation: Manifestation = {
       id,
       type,
@@ -443,10 +521,16 @@ export default function Game() {
       setTimeout(() => setEnemies(prev => prev.map(e => ({ ...e, state: 'marching' }))), 3000);
     }
     if (type === 'rain') {
+      pulseState(setIsRaining, 2500);
       confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, colors: ['#60a5fa'] });
     }
     if (type === 'fire') {
+      pulseState(setIsHeat, 2200);
       setEnemies(prev => prev.map(e => ({ ...e, health: e.health - 100 })));
+    }
+    if (type === 'blood') {
+      pulseState(setBloodFlash, 1800);
+      setEnemies(prev => prev.map(e => ({ ...e, health: e.health - 130 })));
     }
     if (type === 'cold') {
       setIsCold(true);
@@ -467,7 +551,43 @@ export default function Game() {
       setIsShielded(true);
       setTimeout(() => setIsShielded(false), 5000);
     }
+    if (type === 'heavy') {
+      pulseState(setIsHeavy, 1500);
+    }
+    if (type === 'heat') {
+      pulseState(setIsHeat, 1600);
+    }
+    if (type === 'mirror') {
+      pulseState(setDarkFlash, 1800);
+    }
   }, [upgrades.magicRibbon]);
+
+  const triggerKeywordEffect = useCallback((effect: KeywordEffectType) => {
+    if (effect === 'rain') triggerManifestation('rain');
+    if (effect === 'water') {
+      pulseState(setIsWaterPulse, 1500);
+      triggerManifestation('rain');
+    }
+    if (effect === 'blood') triggerManifestation('blood');
+    if (effect === 'red') pulseState(setRedFlash, 1400);
+    if (effect === 'police') {
+      pulseState(setIsPoliceAlert, 2200);
+      playSound('siren');
+    }
+    if (effect === 'thunder') {
+      pulseState(setStormFlash, 1200);
+      playSound('thunder');
+    }
+    if (effect === 'fire') triggerManifestation('fire');
+    if (effect === 'ghost') {
+      pulseState(setGhostFog, 1800);
+      triggerManifestation('ghost');
+    }
+    if (effect === 'cold') triggerManifestation('cold');
+    if (effect === 'heat') triggerManifestation('heat');
+    if (effect === 'wind') pulseState(setWindRush, 1500);
+    if (effect === 'dark') pulseState(setDarkFlash, 1800);
+  }, [playSound, triggerManifestation]);
 
   // Typing Logic
   useEffect(() => {
@@ -486,10 +606,22 @@ export default function Game() {
         setTypedText(prev => {
           const next = prev + char;
           
-          // Check for manifestation words
+          const lower = next.toLowerCase();
+
+          // Chapter-specific manifestation words
           Object.entries(chapter.manifestationWords).forEach(([word, type]) => {
-            if (next.toLowerCase().endsWith(word.toLowerCase())) {
+            if (lower.endsWith(word.toLowerCase())) {
               triggerManifestation(type);
+            }
+          });
+
+          // Global keyword effects (rain/water/blood/red/police etc.)
+          (Object.keys(KEYWORD_EFFECTS) as KeywordEffectType[]).forEach((effect) => {
+            const match = KEYWORD_EFFECTS[effect].some(word => lower.endsWith(word));
+            const now = Date.now();
+            if (match && now - keywordCooldownRef.current[effect] > KEYWORD_COOLDOWN_MS) {
+              keywordCooldownRef.current[effect] = now;
+              triggerKeywordEffect(effect);
             }
           });
 
@@ -500,7 +632,7 @@ export default function Game() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, chapter, triggerManifestation, playSound, lang]);
+  }, [gameState, chapter, triggerManifestation, triggerKeywordEffect, playSound, lang]);
 
   // Game Loop
   useEffect(() => {
@@ -515,6 +647,7 @@ export default function Game() {
           if (e.state === 'stunned') return e;
           let moveSpeed = e.speed;
           if (isTimeSlowed) moveSpeed *= 0.3;
+          if (isHeavy) moveSpeed *= 0.88;
           
           // Censor Effect: Deletes text if close
           if (e.type === 'censor' && e.x > 78 && Math.random() < 0.04) {
@@ -532,27 +665,30 @@ export default function Game() {
         return next;
       });
 
-      // Spawn enemies
-      const spawnRate = (0.005 + chapterIndex * 0.006) * (1 - upgrades.soundProofing * 0.2);
-      if (Math.random() < spawnRate) {
+      // Spawn enemies with progressive level/rank scaling
+      const chapterFactor = 1 + (chapterIndex * 0.28);
+      const rankFactor = 1 + ((rank - 1) * 0.1);
+      const spawnRate = Math.min(0.085, 0.0025 * chapterFactor * rankFactor * (1 - upgrades.soundProofing * 0.12));
+      const maxEnemies = 5 + chapterIndex * 2 + Math.floor(rank / 2);
+      if (enemiesRef.current.length < maxEnemies && Math.random() < spawnRate) {
         const typeRoll = Math.random();
         let type: Enemy['type'] = 'standard';
-        let health = 80 + chapterIndex * 15;
-        let speed = 0.12 + (chapterIndex * 0.04) + Math.random() * 0.25;
+        let health = 62 + chapterIndex * 16 + rank * 5;
+        let speed = 0.06 + chapterIndex * 0.017 + rank * 0.006 + Math.random() * 0.05;
 
         // Introduce enemy types progressively
-        const activeCensors = enemies.filter(e => e.type === 'censor').length;
-        if (chapterIndex >= 4 && typeRoll > 0.85 && activeCensors < 2) {
+        const activeCensors = enemiesRef.current.filter(e => e.type === 'censor').length;
+        if (level >= 5 && typeRoll > 0.84 && activeCensors < 2) {
           type = 'censor';
-          speed = 0.1 + (chapterIndex * 0.015);
-          health = 120 + chapterIndex * 10;
-        } else if (chapterIndex >= 2 && typeRoll > 0.7) {
-          type = 'infiltrator';
-          speed = 0.18 + (chapterIndex * 0.025);
-        } else if (chapterIndex >= 3 && typeRoll > 0.5) {
-          type = 'heavy';
-          health = 180 + chapterIndex * 25;
           speed = 0.07 + (chapterIndex * 0.01);
+          health = 110 + chapterIndex * 12 + rank * 8;
+        } else if (level >= 3 && typeRoll > 0.66) {
+          type = 'infiltrator';
+          speed = 0.1 + chapterIndex * 0.018 + rank * 0.004;
+        } else if (level >= 4 && typeRoll > 0.52) {
+          type = 'heavy';
+          health = 170 + chapterIndex * 20 + rank * 14;
+          speed = 0.05 + chapterIndex * 0.008;
         }
 
         setEnemies(prev => [...prev, {
@@ -567,12 +703,12 @@ export default function Game() {
         }]);
       }
 
-      // Check for victory – only when the player has typed every character and none are wrong
+      // Check for victory â€“ only when the player has typed every character and none are wrong
       if (typedText.length >= chapter.text.length) {
         const allCorrect = typedText.split('').every((ch, idx) => ch === chapter.text[idx]);
         if (allCorrect) {
           setGameState('victory');
-          setRevolutionPoints(prev => prev + (chapter.id * 100));
+          setRevolutionPoints(prev => prev + (chapter.id * 120) + (rank * 20));
           playSound('bell');
           confetti({ particleCount: 150, spread: 100, origin: { y: 0.5 } });
         }
@@ -580,7 +716,7 @@ export default function Game() {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [gameState, typedText, chapter, chapterIndex, isTimeSlowed, isShielded, upgrades.soundProofing, playSound]);
+  }, [gameState, typedText, chapter, chapterIndex, level, rank, isHeavy, isTimeSlowed, isShielded, upgrades.soundProofing, playSound]);
 
   const buyUpgrade = (key: keyof Upgrades) => {
     const cost = (upgrades[key] + 1) * 150;
@@ -599,6 +735,18 @@ export default function Game() {
     setIsHeavy(false);
     setIsCold(false);
     setIsHeat(false);
+    setIsGravity(false);
+    setIsShielded(false);
+    setIsTimeSlowed(false);
+    setIsRaining(false);
+    setIsWaterPulse(false);
+    setIsPoliceAlert(false);
+    setBloodFlash(false);
+    setRedFlash(false);
+    setStormFlash(false);
+    setDarkFlash(false);
+    setGhostFog(false);
+    setWindRush(false);
   };
 
   return (
@@ -609,6 +757,33 @@ export default function Game() {
     )}>
       <CRTOverlay />
       <GlitchEffect active={enemies.some(e => e.type === 'censor' && e.x > 70)} />
+
+      {isRaining && (
+        <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden opacity-40">
+          {Array.from({ length: 60 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute h-14 w-[2px] bg-gradient-to-b from-sky-200/0 to-sky-300 animate-[rain_1s_linear_infinite]"
+              style={{ left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%`, animationDelay: `${(i % 10) * 0.08}s` }}
+            />
+          ))}
+        </div>
+      )}
+      {isPoliceAlert && (
+        <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+          <div className="absolute inset-y-0 left-[-35%] w-1/3 bg-blue-500/20 animate-[policeMove_2s_linear_forwards]" />
+          <div className="absolute inset-y-0 right-[-35%] w-1/3 bg-red-500/20 animate-[policeMoveReverse_2s_linear_forwards]" />
+          <div className="absolute bottom-12 left-0 text-5xl animate-[drive_2s_linear_forwards]">🚓</div>
+          <div className="absolute bottom-20 left-[-8rem] text-5xl animate-[drive_2.1s_linear_forwards]">🚔</div>
+        </div>
+      )}
+      {bloodFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-red-900/45 animate-pulse" />}
+      {redFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-red-500/20" />}
+      {stormFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-white/35 animate-pulse" />}
+      {darkFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-black/45" />}
+      {ghostFog && <div className="pointer-events-none fixed inset-0 z-40 bg-slate-200/10 backdrop-blur-sm" />}
+      {windRush && <div className="pointer-events-none fixed inset-0 z-40 bg-cyan-200/10" />}
+      {isWaterPulse && <div className="pointer-events-none fixed inset-0 z-40 bg-sky-500/20" />}
       
       {/* Background Room Layer */}
       <div 
@@ -637,6 +812,9 @@ export default function Game() {
                 {m.type === 'light' && <Sun className="text-yellow-200 w-24 h-24 animate-pulse blur-sm" />}
                 {m.type === 'ghost' && <Ghost className="text-white/40 w-20 h-20 animate-pulse" />}
                 {m.type === 'fire' && <Flame className="text-red-500 w-20 h-20 animate-bounce" />}
+                {m.type === 'blood' && <Flame className="text-red-700 w-20 h-20 animate-pulse" />}
+                {m.type === 'heat' && <Flame className="text-orange-300 w-20 h-20 animate-pulse" />}
+                {m.type === 'mirror' && <div className="w-12 h-20 border-2 border-white/40 bg-white/10 rounded" />}
                 {m.type === 'wall' && <div className="w-6 h-40 bg-gray-800 border-2 border-gray-600 rounded" />}
                 {m.type === 'cold' && <Snowflake className="text-blue-200 w-16 h-16 animate-spin-slow" />}
                 {m.type === 'shield' && <div className="w-32 h-32 border-4 border-blue-400/30 rounded-full animate-pulse" />}
@@ -712,6 +890,7 @@ export default function Game() {
             </div>
             <div className="text-right">
               <div className="text-[10px] opacity-50 uppercase font-bold tracking-widest">{t.ui.points}: {revolutionPoints}</div>
+              <div className="text-[10px] opacity-50 uppercase font-bold tracking-widest">LEVEL {level} // RANK {rank}</div>
               <div className="text-[8px] opacity-30 uppercase font-bold tracking-widest mt-1">
                 {t.ui.audio}: {audioCtxRef.current?.state === 'running' ? t.ui.active : t.ui.initAudio}
               </div>
@@ -732,9 +911,9 @@ export default function Game() {
                 <h2 className="text-2xl font-display uppercase italic text-white">{chapter.goal}</h2>
               </div>
               <p className="text-xl leading-relaxed opacity-80 mb-10 font-light">
-                {chapter.id === 1 ? (lang === 'sv' ? "Staden sover, men brottet vilar aldrig. Din skrivmaskin är ditt enda vittne." : lang === 'tr' ? "Şehir uyuyor ama suç asla dinlenmez. Daktilon senin tek tanığın." : "The city sleeps, but crime never rests. Your typewriter is your only witness.") : (lang === 'sv' ? "Sanningen kommer fram, bokstav för bokstav." : lang === 'tr' ? "Gerçek ortaya çıkıyor, harf harf." : "The truth emerges, letter by letter.")}
+                {chapter.id === 1 ? (lang === 'sv' ? "Staden sover, men brottet vilar aldrig. Din skrivmaskin Ã¤r ditt enda vittne." : lang === 'tr' ? "Åžehir uyuyor ama suÃ§ asla dinlenmez. Daktilon senin tek tanÄ±ÄŸÄ±n." : "The city sleeps, but crime never rests. Your typewriter is your only witness.") : (lang === 'sv' ? "Sanningen kommer fram, bokstav fÃ¶r bokstav." : lang === 'tr' ? "GerÃ§ek ortaya Ã§Ä±kÄ±yor, harf harf." : "The truth emerges, letter by letter.")}
                 <span className="block mt-4 text-[#f27d26] font-bold italic">
-                  "{lang === 'sv' ? "Bläcket ljuger aldrig." : lang === 'tr' ? "Mürekkep asla yalan söylemez." : "The ink never lies."}"
+                  "{lang === 'sv' ? "BlÃ¤cket ljuger aldrig." : lang === 'tr' ? "MÃ¼rekkep asla yalan sÃ¶ylemez." : "The ink never lies."}"
                 </span>
               </p>
               <div className="flex gap-4">
@@ -864,7 +1043,7 @@ export default function Game() {
             >
               <Skull className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" />
               <h2 className="text-5xl font-display uppercase italic tracking-tighter mb-4 text-white">{t.ui.gameover}</h2>
-              <p className="text-xl mb-10 opacity-80">{lang === 'sv' ? "Du kom för nära sanningen. Fallet är stängt för alltid." : lang === 'tr' ? "Gerçeğe çok yaklaştın. Vaka sonsuza dek kapandı." : "You got too close to the truth. The case is closed forever."}</p>
+              <p className="text-xl mb-10 opacity-80">{lang === 'sv' ? "Du kom fÃ¶r nÃ¤ra sanningen. Fallet Ã¤r stÃ¤ngt fÃ¶r alltid." : lang === 'tr' ? "GerÃ§eÄŸe Ã§ok yaklaÅŸtÄ±n. Vaka sonsuza dek kapandÄ±." : "You got too close to the truth. The case is closed forever."}</p>
               <button 
                 onClick={startChapter}
                 className="w-full px-8 py-5 bg-red-500 text-white font-black uppercase tracking-widest hover:bg-white hover:text-red-500 transition-all rounded-lg"
@@ -948,3 +1127,5 @@ export default function Game() {
     </div>
   );
 }
+
+
