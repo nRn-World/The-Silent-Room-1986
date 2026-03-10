@@ -353,7 +353,6 @@ export default function Game() {
     magicRibbon: 0,
     soundProofing: 0
   });
-  const typingInputRef = useRef<HTMLInputElement>(null);
   const manifestationTriggeredRef = useRef(false);
   const lastKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
   const KEY_DEBOUNCE_MS = 80;
@@ -606,9 +605,6 @@ export default function Game() {
     if (gameState !== 'playing') return;
     if (e.repeat) return;
     if (isTypingRef.current) return;
-    
-    const isFromInput = (e.target as HTMLElement)?.getAttribute?.('data-testid') === 'typing-input';
-    if (isFromInput) e.preventDefault();
 
     if (e.key === 'Backspace') {
       const now = Date.now();
@@ -661,13 +657,7 @@ export default function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       handleKeyDownRef.current(e);
-      // Om tangenten kom från vår typing-input: stoppa så den inte når input/bubblar (undviker dubbel bokstav)
-      if ((e.target as HTMLElement)?.getAttribute?.('data-testid') === 'typing-input') {
-        e.stopPropagation();
-        e.preventDefault();
-      }
     };
-    // Capture-fas: vi hanterar FÖRE eventet når input, så bara en hantering
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);
@@ -833,7 +823,7 @@ export default function Game() {
         )}
         style={{ transform: `translate(${Math.random() * shake}px, ${Math.random() * shake}px)` }}
       >
-        <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/detective/1920/1080?blur=10')] bg-cover opacity-10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black opacity-90" />
         
         {/* Manifestations */}
         <AnimatePresence>
@@ -1152,7 +1142,7 @@ export default function Game() {
           </div>
           <div className="space-y-2">
             <div className="text-[10px] uppercase opacity-50 font-bold tracking-widest">{t.ui.accuracy}</div>
-            <div className="text-3xl font-display italic text-white">98%</div>
+            <div className="text-3xl font-display italic text-white">{typedText.length > 0 ? Math.round((typedText.split('').filter((c, i) => c === chapter.text[i]).length / typedText.length) * 100) : 100}%</div>
           </div>
           <div className="col-span-2 space-y-2">
             <div className="flex justify-between items-end">
