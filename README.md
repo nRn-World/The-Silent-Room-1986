@@ -123,7 +123,7 @@ The-Silent-Room-1986/
 
 ## 🌐 Links
 
-- **Play Online**: [https://RobinAyzit.github.io/The-Silent-Room-1986](https://nrn-world.github.io/The-Silent-Room-1986/)
+- **Play Online**: [https://nRn-World.github.io/The-Silent-Room-1986](https://nrn-world.github.io/The-Silent-Room-1986/)
 
 ---
 
