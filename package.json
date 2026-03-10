@@ -8,9 +8,9 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"const fs=require('fs'); ['build','dist'].forEach(d=>{try{fs.rmSync(d,{recursive:true})}catch(_){}})\"",
     "lint": "tsc --noEmit",
-    "deploy": "npm run build && gh-pages -d dist"
+    "deploy": "npm run build && gh-pages -d build"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

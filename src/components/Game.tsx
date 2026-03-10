@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // background music file URLs (Vite will copy these into the build)
 const menuAudioUrl = new URL('../../Sounds/menu.mp3', import.meta.url).href;
@@ -353,7 +353,12 @@ export default function Game() {
     magicRibbon: 0,
     soundProofing: 0
   });
-  
+  const typingInputRef = useRef<HTMLInputElement>(null);
+  const manifestationTriggeredRef = useRef(false);
+  const lastKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const KEY_DEBOUNCE_MS = 80;
+  const isTypingRef = useRef(false);
+
   const t = TRANSLATIONS[lang];
   const chapter = t.chapters[chapterIndex];
   const level = chapterIndex + 1;
@@ -596,50 +601,78 @@ export default function Game() {
     if (effect === 'dark') pulseState(setDarkFlash, 1800);
   }, [playSound, triggerManifestation]);
 
-  // Typing Logic
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState !== 'playing') return;
+  // Typing Logic – en enda window-lyssnare (ref så att vi aldrig får dubbel registrering)
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (gameState !== 'playing') return;
+    if (e.repeat) return;
+    if (isTypingRef.current) return;
+    
+    const isFromInput = (e.target as HTMLElement)?.getAttribute?.('data-testid') === 'typing-input';
+    if (isFromInput) e.preventDefault();
+
+    if (e.key === 'Backspace') {
+      const now = Date.now();
+      if (now - lastKeyRef.current.time < KEY_DEBOUNCE_MS && lastKeyRef.current.key === 'Backspace') return;
+      lastKeyRef.current = { key: 'Backspace', time: now };
+      playSound('backspace');
+      setTypedText(prev => prev.slice(0, -1));
+      return;
+    }
+
+    if (e.key.length === 1) {
+      const now = Date.now();
+      if (now - lastKeyRef.current.time < KEY_DEBOUNCE_MS && lastKeyRef.current.key === e.key) return;
+      lastKeyRef.current = { key: e.key, time: now };
+
+      isTypingRef.current = true;
+      setTimeout(() => { isTypingRef.current = false; }, 50);
       
-      if (e.key === 'Backspace') {
-        playSound('backspace');
-        setTypedText(prev => prev.slice(0, -1));
-        return;
-      }
+      playSound('click');
+      manifestationTriggeredRef.current = false;
+      const char = e.key;
+      setTypedText(prev => {
+        const next = prev + char;
+        const normalized = normalizeForMatch(next);
 
-      if (e.key.length === 1) {
-        playSound('click');
-        const char = e.key;
-        setTypedText(prev => {
-          const next = prev + char;
-          
-          const normalized = normalizeForMatch(next);
-
-          // Chapter-specific manifestation words
-          Object.entries(chapter.manifestationWords).forEach(([word, type]) => {
-            if (normalized.endsWith(normalizeForMatch(word))) {
-              triggerManifestation(type);
-            }
-          });
-
-          // Global keyword effects (rain/water/blood/red/police etc.)
-          (Object.keys(KEYWORD_EFFECTS) as KeywordEffectType[]).forEach((effect) => {
-            const match = KEYWORD_EFFECTS[effect].some(word => normalized.endsWith(normalizeForMatch(word)));
-            const now = Date.now();
-            if (match && now - keywordCooldownRef.current[effect] > KEYWORD_COOLDOWN_MS) {
-              keywordCooldownRef.current[effect] = now;
-              triggerKeywordEffect(effect);
-            }
-          });
-
-          return next;
+        Object.entries(chapter.manifestationWords).forEach(([word, type]) => {
+          if (normalized.endsWith(normalizeForMatch(word))) {
+            manifestationTriggeredRef.current = true;
+            triggerManifestation(type);
+          }
         });
+
+        (Object.keys(KEYWORD_EFFECTS) as KeywordEffectType[]).forEach((effect) => {
+          const match = KEYWORD_EFFECTS[effect].some(word => normalized.endsWith(normalizeForMatch(word)));
+          const now = Date.now();
+          if (match && now - keywordCooldownRef.current[effect] > KEYWORD_COOLDOWN_MS) {
+            keywordCooldownRef.current[effect] = now;
+            manifestationTriggeredRef.current = true;
+            triggerKeywordEffect(effect);
+          }
+        });
+
+        return next;
+      });
+    }
+  }, [gameState, chapter, triggerManifestation, triggerKeywordEffect, playSound, lang]);
+
+  const handleKeyDownRef = useRef(handleKeyDown);
+  handleKeyDownRef.current = handleKeyDown;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      handleKeyDownRef.current(e);
+      // Om tangenten kom från vår typing-input: stoppa så den inte når input/bubblar (undviker dubbel bokstav)
+      if ((e.target as HTMLElement)?.getAttribute?.('data-testid') === 'typing-input') {
+        e.stopPropagation();
+        e.preventDefault();
       }
     };
+    // Capture-fas: vi hanterar FÖRE eventet når input, så bara en hantering
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, chapter, triggerManifestation, triggerKeywordEffect, playSound, lang]);
+  // Fokus på input INTE – det orsakade dubbla bokstäver. E2E kan själva fokusera input vid behov.
 
   // Game Loop
   useEffect(() => {
@@ -835,6 +868,7 @@ export default function Game() {
         {enemies.map(e => (
           <motion.div
             key={e.id}
+            data-testid="enemy"
             className="absolute flex flex-col items-center z-20"
             style={{ left: `${e.x}%`, top: `${e.y}%` }}
             animate={{ y: isGravity ? -300 : 0 }}
@@ -912,12 +946,16 @@ export default function Game() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-black/90 p-10 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl max-w-2xl mx-auto"
+              data-testid="game-menu"
             >
-              <div className="flex items-center gap-4 mb-8">
-                <BookOpen className="w-10 h-10 text-[#f27d26]" />
-                <h2 className="text-2xl font-display uppercase italic text-white">{chapter.goal}</h2>
+              <div className="flex items-center gap-4 mb-8" data-testid="chapter-goal">
+                <BookOpen className="w-10 h-10 text-[#f27d26]" aria-hidden />
+                <div>
+                  <span className="text-[10px] uppercase opacity-70 block mb-1">Chapter Goal</span>
+                  <h2 className="text-2xl font-display uppercase italic text-white">{chapter.goal}</h2>
+                </div>
               </div>
-              <p className="text-xl leading-relaxed opacity-80 mb-10 font-light">
+              <p className="text-xl leading-relaxed opacity-80 mb-10 font-light narrative text" data-testid="narrative-text">
                 {chapter.id === 1 ? (lang === 'sv' ? "Staden sover, men brottet vilar aldrig. Din skrivmaskin är ditt enda vittne." : lang === 'tr' ? "Şehir uyuyor ama suç asla dinlenmez. Daktilon senin tek tanığın." : "The city sleeps, but crime never rests. Your typewriter is your only witness.") : (lang === 'sv' ? "Sanningen kommer fram, bokstav för bokstav." : lang === 'tr' ? "Gerçek ortaya çıkıyor, harf harf." : "The truth emerges, letter by letter.")}
                 <span className="block mt-4 text-[#f27d26] font-bold italic">
                   "{lang === 'sv' ? "Bläcket ljuger aldrig." : lang === 'tr' ? "Mürekkep asla yalan söylemez." : "The ink never lies."}"
@@ -927,18 +965,20 @@ export default function Game() {
                 <button 
                   onClick={startChapter}
                   className="group relative flex-1 px-8 py-5 bg-[#f27d26] text-black font-black uppercase tracking-[0.2em] overflow-hidden rounded-lg hover:bg-white transition-all"
+                  data-testid="start-investigation"
                 >
                   <span className="relative z-10">{t.ui.initialize}</span>
                   <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </button>
-                {chapterIndex > 0 && (
-                  <button 
-                    onClick={() => setGameState('upgrading')}
-                    className="px-8 py-5 bg-white/10 text-white font-black uppercase tracking-[0.2em] rounded-lg hover:bg-white/20 transition-all"
-                  >
-                    {t.ui.upgrades}
-                  </button>
-                )}
+                <button 
+                  onClick={() => chapterIndex > 0 && setGameState('upgrading')}
+                  disabled={chapterIndex === 0}
+                  className="px-8 py-5 bg-white/10 text-white font-black uppercase tracking-[0.2em] rounded-lg hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="upgrades-button"
+                  aria-label={t.ui.upgrades}
+                >
+                  {t.ui.upgrades}
+                </button>
               </div>
             </motion.div>
           )}
@@ -948,6 +988,7 @@ export default function Game() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-black/95 p-10 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl max-w-3xl mx-auto w-full"
+              data-testid="upgrade-shop"
             >
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-3xl font-display uppercase italic text-[#f27d26]">{t.ui.typewriterMods}</h2>
@@ -964,7 +1005,7 @@ export default function Game() {
                   const cost = (level + 1) * 150;
                   return (
                     <div key={u.id} className="p-6 bg-white/5 border border-white/10 rounded-xl flex flex-col items-center text-center">
-                      <u.icon className="w-10 h-10 text-[#f27d26] mb-4" />
+                      <u.icon className="w-10 h-10 text-[#f27d26] mb-4" aria-hidden />
                       <h3 className="text-lg font-bold mb-2">{u.name}</h3>
                       <div className="flex gap-1 mb-6">
                         {[1, 2, 3].map(i => (
@@ -986,6 +1027,7 @@ export default function Game() {
               <button 
                 onClick={() => setGameState('narrative')}
                 className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-lg hover:bg-[#f27d26] transition-all"
+                data-testid="return-to-case"
               >
                 {t.ui.return}
               </button>
@@ -994,9 +1036,9 @@ export default function Game() {
 
           {gameState === 'playing' && (
             <div className="space-y-12">
-              
+              {/* Ingen dold input under spel – orsakade dubbla bokstäver. E2E kan använda document.body + keyboard. */}
               {/* Target Text Display */}
-              <div className="text-3xl leading-[1.6] font-medium max-w-4xl mx-auto">
+              <div className="text-3xl leading-[1.6] font-medium max-w-4xl mx-auto" data-testid="story-text">
                 {chapter.text.split('').map((char, i) => {
                   let color = "text-white/10";
                   let decoration = "";
@@ -1047,13 +1089,18 @@ export default function Game() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-red-950/90 p-12 border-4 border-red-500 text-center rounded-2xl shadow-2xl max-w-2xl mx-auto"
+              data-testid="game-over-modal"
+              role="dialog"
+              aria-label="Game Over"
             >
-              <Skull className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" />
+              <Skull className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" aria-hidden />
+              <span className="sr-only">Game Over</span>
               <h2 className="text-5xl font-display uppercase italic tracking-tighter mb-4 text-white">{t.ui.gameover}</h2>
               <p className="text-xl mb-10 opacity-80">{lang === 'sv' ? "Du kom för nära sanningen. Fallet är stängt för alltid." : lang === 'tr' ? "Gerçeğe çok yaklaştın. Vaka sonsuza dek kapandı." : "You got too close to the truth. The case is closed forever."}</p>
               <button 
                 onClick={startChapter}
                 className="w-full px-8 py-5 bg-red-500 text-white font-black uppercase tracking-widest hover:bg-white hover:text-red-500 transition-all rounded-lg"
+                data-testid="restart-case"
               >
                 {t.ui.restart}
               </button>
@@ -1065,9 +1112,14 @@ export default function Game() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="bg-green-950/90 p-12 border-4 border-green-500 text-center rounded-2xl shadow-2xl max-w-2xl mx-auto"
+              data-testid="victory-screen"
+              role="dialog"
+              aria-label="Victory"
             >
-              <Fingerprint className="w-24 h-24 text-green-500 mx-auto mb-6 animate-pulse" />
-              <h2 className="text-5xl font-display uppercase italic tracking-tighter mb-4 text-white">{t.ui.victory}</h2>
+              <Fingerprint className="w-24 h-24 text-green-500 mx-auto mb-6 animate-pulse" aria-hidden />
+              <h2 className="text-5xl font-display uppercase italic tracking-tighter mb-4 text-white">
+                <span data-testid="victory-heading">Victory</span> — {t.ui.victory}
+              </h2>
               <p className="text-xl mb-10 opacity-80">
                 {chapter.id === 5 ? t.ui.wrongGuess : chapter.id === 6 ? t.ui.truth : t.ui.progress}
               </p>
@@ -1082,6 +1134,7 @@ export default function Game() {
                   }
                 }}
                 className="w-full px-8 py-5 bg-green-500 text-white font-black uppercase tracking-widest hover:bg-white hover:text-green-500 transition-all rounded-lg"
+                data-testid="next-chapter"
               >
                 {chapterIndex < t.chapters.length - 1 ? t.ui.next : t.ui.restart}
               </button>
@@ -1108,7 +1161,7 @@ export default function Game() {
                 {Math.round((typedText.length / chapter.text.length) * 100)}%
               </div>
             </div>
-            <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/10">
+            <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden border border-white/10" data-testid="progress-bar">
               <motion.div 
                 className="h-full bg-gradient-to-r from-[#f27d26] to-amber-400" 
                 initial={{ width: 0 }}
