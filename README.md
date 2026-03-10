@@ -6,11 +6,11 @@
 
 ---
 
-<img width="800" alt="The Silent Room 1986" src="https://raw.githubusercontent.com/RobinAyzit/The-Silent-Room-1986/master/logo.png" />
+<img width="800" alt="The Silent Room 1986" src="https://raw.githubusercontent.com/nrn-world/The-Silent-Room-1986/master/logo.png" />
 
 ---
 
-### [▶ PLAY NOW](https://robinayzit.github.io/The-Silent-Room-1986)
+### [▶ PLAY NOW](https://nrn-world.github.io/The-Silent-Room-1986/)
 
 ---
 
@@ -79,7 +79,7 @@ Uncover the truth behind Case #402 in this atmospheric mystery adventure.
 
 ```bash
 # Clone the repository
-git clone https://github.com/RobinAyzit/The-Silent-Room-1986.git
+git clone https://github.com/nrn-world/The-Silent-Room-1986.git
 cd The-Silent-Room-1986
 
 # Install dependencies
@@ -124,9 +124,9 @@ The-Silent-Room-1986/
 
 ## 🌐 Links
 
-- **Play Online**: https://RobinAyzit.github.io/The-Silent-Room-1986
+- **Play Online**: https://nrn-world.github.io/The-Silent-Room-1986/
 - **itch.io**: https://robinayzit.itch.io/the-silent-room-1986
-- **GitHub**: https://github.com/RobinAyzit/The-Silent-Room-1986
+- **GitHub**: https://github.com/nrn-world/The-Silent-Room-1986
 
 ---
 
