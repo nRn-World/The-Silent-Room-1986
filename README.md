@@ -6,11 +6,9 @@
 
 ---
 
-<img width="800" alt="The Silent Room 1986" src="https://raw.githubusercontent.com/nrn-world/The-Silent-Room-1986/master/logo.png" />
-
----
-
-### [▶ PLAY NOW](https://nrn-world.github.io/The-Silent-Room-1986/)
+<a href="https://nrn-world.github.io/The-Silent-Room-1986/">
+  <img width="800" alt="The Silent Room 1986" src="https://raw.githubusercontent.com/nrn-world/The-Silent-Room-1986/master/logo.png" />
+</a>
 
 ---
 
